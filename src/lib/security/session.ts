@@ -1,7 +1,7 @@
 /*
  * Minimal internal access protection (PRD §21.1). Every browser gets an anonymous session cookie, used for per-session
  * limits. If STUDIO_PASSCODE is set, the whole app sits behind a passcode screen as well. The server also listens only
- * on 127.0.0.1, so nobody else on the network can use the ChatGPT plan connected on this Mac.
+ * on 127.0.0.1 on a Mac, so nobody else on the network can use it.
  */
 export const SESSION_COOKIE = "studio_sid";
 export const PASS_COOKIE = "studio_pass";

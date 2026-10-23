@@ -13,8 +13,8 @@ import { deleteBlob, MissingFileError, putBlob, readBlob } from "./blobStore";
  * saving fails, the result stays available). Removed after 24 hours, so uploads aren't kept longer than needed
  * (PRD §21.4).
  *   • On a Mac running everything itself: files in the git-ignored .data/drafts folder.
- *   • On the live site (helper mode): in Firestore (`drafts/{id}` + a blob), because the helper Mac writes the results
- *     and any of Vercel's servers must be able to read them.
+ *   • On the live site: in Firestore (`drafts/{id}` + a blob), because any of Vercel's servers must be able to read
+ *     the result, whichever one made it.
  */
 
 const MAX_AGE_MS = 24 * 60 * 60_000;
@@ -119,7 +119,7 @@ export async function sweepDrafts(now = Date.now()): Promise<number> {
   return removed;
 }
 
-/* ── Firestore drafts (live site / helper mode) ─────────────────────────────────────────────────────────── */
+/* ── Firestore drafts (live site) ─────────────────────────────────────────────────────────── */
 
 type StoredDraft = DraftInfo & { blobId: string };
 

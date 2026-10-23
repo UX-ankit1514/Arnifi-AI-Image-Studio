@@ -18,6 +18,6 @@ export async function studioStatus(force = false): Promise<StudioStatus> {
     testMode: isTestMode(),
     passcode: Boolean(process.env.STUDIO_PASSCODE?.trim()),
     hosted: isHosted(),
-    mode: usesRemoteJobs() ? "helper" : "local",
+    mode: usesRemoteJobs() ? "server" : "local",
   };
 }

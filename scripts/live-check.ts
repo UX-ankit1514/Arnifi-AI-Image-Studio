@@ -1,7 +1,7 @@
 /*
- * npm run test:live — the "real provider" check (PRD §25): one real generation and one real edit through the configured
- * provider (by default ChatGPT via Codex), with the same code the app uses. It uses your ChatGPT plan (2 images, about
- * 2–4 minutes) and saves nothing to the library. Results are written to .data/live-check/ so you can look at them.
+ * npm run test:live — the "real provider" check (PRD §25): one real generation and one real edit through Curvet (GPT
+ * Image), with the same code the app uses. It spends the credits for 2 images and saves nothing to the library.
+ * Results are written to .data/live-check/ so you can look at them. Needs CURVET_API_KEY in the environment.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";

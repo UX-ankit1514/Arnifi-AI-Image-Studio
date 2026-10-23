@@ -16,7 +16,7 @@ import { toImageDoc, toImageRecord } from "./imageMapping";
  *
  * Reads go through an in-memory cache of all metadata so search and the grid don't spend Firestore's free daily read
  * allowance on every keystroke. Every write bumps `meta/library`; a server checks that one document before trusting its
- * cache, so all of Vercel's servers (and the helper Mac, and `npm run seed`) see new images straight away.
+ * cache, so all of Vercel's servers (and `npm run seed`) see new images straight away.
  */
 
 export type NewImage = Omit<ImageRecord, "id" | "blobId" | "width" | "height" | "format" | "mimeType" | "fileSize" | "hasAlpha" | "createdAt" | "updatedAt" | "rootImageId"> & {

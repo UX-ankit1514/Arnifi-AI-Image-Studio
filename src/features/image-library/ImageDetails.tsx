@@ -23,6 +23,15 @@ import { urls } from "@/lib/client/urls";
 import { parseTagList } from "@/lib/validation/schemas";
 import type { ImageRecord } from "@/types/image";
 
+/** Older images may name providers the studio used before Curvet. */
+const PROVIDER_LABEL: Record<string, string> = {
+  curvet: "Curvet · GPT Image",
+  codex: "ChatGPT (via Codex)",
+  helper: "ChatGPT (via the helper Mac)",
+  openai: "OpenAI Image API",
+  mock: "Test provider",
+};
+
 /* Screen 5 — Image Details (PRD §7.2 steps 4–5, §12): big preview, every saved detail, related versions, actions. */
 
 interface DetailsResponse {
@@ -161,7 +170,7 @@ export function ImageDetails({ id }: { id: string }) {
                 <Row label="Added">{formatDate(image.createdAt, true)}</Row>
                 {image.provider && (
                   <Row label="Made with">
-                    {image.provider === "codex" ? "ChatGPT (via Codex)" : image.provider === "openai" ? "OpenAI Image API" : image.provider}
+                    {PROVIDER_LABEL[image.provider] ?? image.provider}
                     {image.model ? ` · ${image.model}` : ""}
                   </Row>
                 )}

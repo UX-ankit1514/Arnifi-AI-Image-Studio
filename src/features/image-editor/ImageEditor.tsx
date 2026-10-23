@@ -190,6 +190,12 @@ export function ImageEditor() {
         </Notice>
       )}
 
+      {status?.options.edit.note && (
+        <Notice tone="warning" title="Editing works differently right now">
+          {status.options.edit.note}
+        </Notice>
+      )}
+
       <div className="grid items-start gap-8 lg:grid-cols-[24rem_minmax(0,1fr)]">
         <section aria-label="Edit controls" className="flex flex-col gap-6 rounded-card border border-line bg-white p-6">
           {!hydrated || loadingSource ? (
@@ -440,7 +446,7 @@ function PendingPane({ job, onCancel, cancelling, label, ratio }: { job: JobView
       <div className="relative">
         <p className="text-sh8 font-semibold text-ink">{job?.status === "queued" ? "Waiting to start…" : "Applying changes…"}</p>
         <p className="mt-1 text-p4 text-muted">
-          {label} usually takes 1–2 minutes{job?.startedAt ? ` · ${elapsed(job.startedAt, now)}` : ""}.
+          {label} usually takes about a minute{job?.startedAt ? ` · ${elapsed(job.startedAt, now)}` : ""}.
         </p>
         {job?.note && <p className="mt-2 text-p4 font-medium text-tang-800">{job.note}</p>}
       </div>

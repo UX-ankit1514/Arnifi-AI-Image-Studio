@@ -5,7 +5,7 @@
 ## Before the meeting
 - [ ] Settings shows **AI images: Connected** and **Image storage: Connected**. The header says "Connected".
 - [ ] Usage today has room for at least 4 requests: 1 generate and 1 edit, plus one spare of each.
-- [ ] Each AI step takes about 1–2 minutes. Plan to talk through the waiting screen; it shows a timer and a Cancel button.
+- [ ] Each AI step takes about a minute and uses Curvet credits. Check the balance in Settings. Plan to talk through the waiting screen; it shows a timer and a Cancel button.
 
 ## Step 1: Search existing images
 - [ ] Open **Image Library** and type **Dubai business**. Previously used Dubai photos appear (DIFC, DWTC, Sheikh Zayed Road and others).
@@ -38,6 +38,6 @@
 > "Arnifi Image Studio brings image discovery, AI generation, editing, and brand-specific prompt guidelines into one workspace. Teams can create and reuse consistent visual assets more easily, reducing repetitive work and tool switching."
 
 ## If something goes wrong
-- **"AI isn't connected"**: in Terminal, run `codex login` and choose "Sign in with ChatGPT".
-- **"Image limit reached for now"**: the ChatGPT plan's limit. The message says when to try again. Have a result saved from a rehearsal as a backup.
+- **"AI isn't connected"**: `CURVET_API_KEY` is missing or wrong in Vercel. See `docs/live-site.md`.
+- **"run out of credits"**: top up the Curvet balance. Have a result saved from a rehearsal as a backup.
 - **"Saving isn't set up yet"**: the Firebase key isn't in `~/.config/arnifi-image-studio/`. See README → Connect storage.

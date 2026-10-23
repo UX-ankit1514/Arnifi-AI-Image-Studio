@@ -44,7 +44,7 @@ export async function usageToday(): Promise<{ date: string; used: number; limit:
 }
 
 /**
- * `sessionHits` (helper mode): the session's request times in the last hour, counted from Firestore — on Vercel each
+ * `sessionHits` (live site): the session's request times in the last hour, counted from Firestore — on Vercel each
  * request can land on a different server, so an in-memory count would be wrong.
  */
 export async function reserveRequest(sessionId: string, kind: "generate" | "edit", sessionHits?: number[]): Promise<JobError | null> {

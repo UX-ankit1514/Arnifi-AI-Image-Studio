@@ -3,8 +3,8 @@ import type { ImageFormat } from "@/types/image";
 
 /*
  * Provider abstraction (PRD §14.3). The UI and the job runner only talk to this interface, so a different image model
- * is a new implementation of it — nothing else changes. One real implementation is wired for the MVP (Codex with the
- * ChatGPT plan); the OpenAI Image API implementation is ready for hosting.
+ * is a new implementation of it — nothing else changes. The studio uses Curvet (GPT Image); the test provider stands in
+ * for it in automated tests.
  */
 
 export interface SupportedOptions {

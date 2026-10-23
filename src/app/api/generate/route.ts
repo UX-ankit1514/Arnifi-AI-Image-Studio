@@ -5,6 +5,9 @@ import { buildGenerateRequest, RequestError } from "@/lib/server/compose";
 import { apiError, fromError, noSession, ok, readJson, sessionOf } from "@/lib/server/http";
 import { generateRequestSchema } from "@/lib/validation/schemas";
 
+/** On Vercel the image is made by this function after it answers; GPT Image can take a minute or two. */
+export const maxDuration = 300;
+
 /* Generate Image (FR-03): validate → compose → queue a job. The browser then follows GET /api/jobs/[id]. */
 export async function POST(request: NextRequest) {
   const sessionId = sessionOf(request);

@@ -102,14 +102,13 @@ export interface Job {
   startedAt: string | null;
   finishedAt: string | null;
   savedImageId: string | null;
-  /** Helper mode: which helper Mac is making it, and whether someone pressed Cancel while it was running. */
-  helperId?: string | null;
+  /** Live site: someone pressed Cancel while it was running (the server making it checks this). */
   cancelRequested?: boolean;
 }
 
 /** GET /api/jobs/[id]: the job plus where it is in the queue. */
 export interface JobView extends Job {
   queuePosition: number | null;
-  /** A plain note about a wait, e.g. the helper Mac is offline. */
+  /** A plain note about a wait. */
   note?: string | null;
 }

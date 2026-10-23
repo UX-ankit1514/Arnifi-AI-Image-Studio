@@ -35,7 +35,7 @@ export function GeneratingCard({ job, providerLabel, onCancel, cancelling }: { j
       <div>
         <p className="text-sh7 font-semibold text-ink">{queued ? "Waiting to start…" : job ? "Generating image…" : "Sending your request…"}</p>
         <p className="mt-1 text-p3 text-muted">
-          {queued && job?.queuePosition ? `Another image is being made first (${job.queuePosition} ahead).` : `${providerLabel} usually takes 1–2 minutes.`}
+          {queued && job?.queuePosition ? `Another image is being made first (${job.queuePosition} ahead).` : `${providerLabel} usually takes about a minute.`}
           {job?.startedAt && <span className="tabular-nums"> {elapsed(job.startedAt, now)} so far.</span>}
         </p>
         {job?.note && <p className="mt-2 text-p3 font-medium text-tang-800">{job.note}</p>}
@@ -82,7 +82,7 @@ const TITLES: Partial<Record<JobError["code"], string>> = {
   rate_limited: "Too many requests",
   budget_reached: "Today’s studio limit is reached",
   not_configured: "AI isn’t connected",
-  not_signed_in: "ChatGPT isn’t signed in",
+  not_signed_in: "The image service isn’t connected",
   timeout: "This took too long",
   unavailable: "The image service isn’t responding",
   interrupted: "The request stopped",

@@ -1,77 +1,42 @@
-# The live site (Vercel) and the helper Mac
+# The live site (Vercel)
 
-**Live site:** https://arnifi-ai-image.vercel.app
+**Live site:** https://arnifi-ai-image.vercel.app. Share this link and the passcode. Nobody installs anything, and no computer needs to stay on.
 
-## Why the live site needs a helper Mac
-
-The website runs on Vercel's servers. Vercel can't run the Codex app, and it can't use anyone's "Sign in with ChatGPT". Running `codex login` on your own laptop doesn't change that, which is why the live site said "AI not connected".
-
-So the live site **queues** each image request in Firestore. A **helper Mac**, one Mac that is signed in to Codex with your ChatGPT plan, picks the requests up, makes the images, and sends them back. Everyone with the link gets real AI images, and nobody else installs anything.
+## How images are made
 
 ```
-Stakeholder's browser ──► arnifi-ai-image.vercel.app ──► Firestore queue ◄── helper Mac (Codex + ChatGPT plan)
-                          (passcode)                     (images, details)    makes the image, sends it back
+Browser ──► arnifi-ai-image.vercel.app (passcode) ──► Curvet API ──► OpenAI GPT Image model
+                     │                                    (your Curvet key and balance)
+                     └── Firestore: library, image files, request status
 ```
 
----
+The website's own server, on Vercel, sends each request to **Curvet** with the studio's API key. Curvet runs it on OpenAI's **GPT Image** model (`gpt-image-2` by default). The server downloads the result and stores it in Firestore. Each image is paid from your **Curvet balance**.
 
-## One-time setup (you)
+## Settings in Vercel (Production)
 
-### 1. Get the Firebase key
-1. Open https://console.firebase.google.com/project/arnifi-image-studio/settings/serviceaccounts/adminsdk
-2. Click **Generate new private key** → **Generate key**. A `.json` file downloads.
-3. Rename it to `firebase-sa.json` and move it to `~/.config/arnifi-image-studio/`. In Finder, press ⌘⇧G and paste that path. The helper Mac uses this file.
-
-### 2. Add three settings in Vercel
-In vercel.com, open this project → **Settings** → **Environment Variables**. Add these for **Production**:
-
-| Name | Value |
+| Name | What it is |
 |---|---|
-| `STUDIO_PASSCODE` | A passcode you choose. Share it with the team. **Required:** without it, the site shows a setup page |
-| `FIREBASE_SERVICE_ACCOUNT` | The *contents* of `firebase-sa.json`. Open the file in TextEdit, press ⌘A, ⌘C, then paste it here |
-| `IMAGE_PROVIDER` | Leave it out. On Vercel, the studio uses the helper Mac automatically |
+| `STUDIO_PASSCODE` | The passcode people type to open the site. Required |
+| `FIREBASE_SERVICE_ACCOUNT` | The contents of the Firebase key file. It holds the library and images |
+| `CURVET_API_KEY` | Your Curvet app key, with the **Image** category on. It makes the images |
+| `CURVET_IMAGE_MODEL` | Optional. A different GPT image model id from Curvet's list |
 
-Then go to **Deployments** → ⋯ on the latest deployment → **Redeploy**.
+After changing any setting: **Deployments → ⋯ → Redeploy**. Settings only apply to new deployments.
 
-### 3. Fill the library (once)
-In Terminal, in the project folder, run `npm run seed`. This copies the 24 starting photos into Firestore, so the live site shows them too.
+## Costs and limits
 
-### 4. Start the helper
-On the Mac that's signed in to Codex, double-click **`Start Image Studio Helper.command`** in the project folder. Terminal opens and says **"✓ Helper is running"**.
-
-Open the live site → **Settings**. "AI images" should say **Connected — Images are made by the helper Mac "<your Mac's name>"**.
-
----
-
-## Every day
-
-- **Keep the helper running** while people need Generate or Edit:
-  - Leave the Terminal window open.
-  - Keep the Mac on power and on the internet.
-  - The helper stops the Mac from going to sleep while it runs. Closing the lid still makes most Macs sleep.
-- **Without the helper,** browsing, searching and downloading still work. Generate and Edit say "the helper Mac is offline" instead of failing silently.
-- **One image at a time,** about 1–2 minutes each. ChatGPT plan limits apply to the whole team, because everyone shares this Mac's plan.
-
-## For stakeholders (nothing to install)
-
-1. Open **https://arnifi-ai-image.vercel.app** on any laptop or browser, including incognito.
-2. Enter the passcode.
-3. Use the library, generate, edit and download.
-
----
+- Each generate or edit request uses Curvet credits, including requests that fail.
+- The studio also has its own caps: 40 requests a day for everyone and 15 an hour per browser. Change them with `MAX_IMAGE_REQUESTS_PER_DAY` and `MAX_REQUESTS_PER_SESSION_PER_HOUR`.
+- You can add a cap on the key itself in Curvet: API Keys → the key → "Set a request limit".
+- Settings → "AI images" shows the current Curvet balance.
 
 ## If something's wrong
 
 | What you see | What to do |
 |---|---|
-| "One step before this site opens" | `STUDIO_PASSCODE` isn't set in Vercel. Add it, then redeploy |
+| "One step before this site opens" | Set `STUDIO_PASSCODE` in Vercel, then redeploy |
 | Settings → Image storage "Not set up" | `FIREBASE_SERVICE_ACCOUNT` is missing or isn't the whole file. Paste it again, then redeploy |
-| "No helper Mac has connected yet" / "is offline" | Start `Start Image Studio Helper.command` on the helper Mac |
-| "The helper Mac is running, but: Codex isn't signed in" | On that Mac, run `codex login` and choose "Sign in with ChatGPT" |
-| "Image limit reached for now" | The ChatGPT plan's limit. The message says when to try again |
-
-## Alternative: no helper Mac
-
-If keeping a Mac on isn't practical, the live site can make images on its own with an OpenAI API key, billed per image:
-1. Add `IMAGE_PROVIDER=openai` and `OPENAI_API_KEY` in Vercel.
-2. Ask for this change: the website would then run requests itself, so its queue needs a small update before this works on Vercel.
+| "No Curvet API key is set up" | Add `CURVET_API_KEY` in Vercel, then redeploy |
+| "The Curvet API key was rejected" | Create a new key in Curvet (Image category on) and update `CURVET_API_KEY` |
+| "run out of credits" | Top up the Curvet balance |
+| "isn't allowed to use the image model" | In Curvet, edit the key so the Image category (and the model) is allowed |

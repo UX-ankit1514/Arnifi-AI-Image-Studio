@@ -2,6 +2,9 @@ import type { NextRequest } from "next/server";
 import { getRunner } from "@/lib/jobs/runner";
 import { apiError, fromError, noSession, ok, sessionOf } from "@/lib/server/http";
 
+/** On Vercel the image is made by this function after it answers; GPT Image can take a minute or two. */
+export const maxDuration = 300;
+
 /* GET: where a request is (queued, generating, completed, failed). DELETE: cancel it. */
 
 export async function GET(request: NextRequest, { params }: RouteContext<"/api/jobs/[id]">) {

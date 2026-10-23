@@ -6,6 +6,9 @@ import { apiError, fromError, noSession, ok, readJson, sessionOf } from "@/lib/s
 import { getDraftInfo } from "@/lib/storage/draftStore";
 import { editRequestSchema } from "@/lib/validation/schemas";
 
+/** On Vercel the image is made by this function after it answers; GPT Image can take a minute or two. */
+export const maxDuration = 300;
+
 /* Apply Changes (FR-05): checks the source exists, then queues an edit job. The source itself is never changed. */
 export async function POST(request: NextRequest) {
   const sessionId = sessionOf(request);

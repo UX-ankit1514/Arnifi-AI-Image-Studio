@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { serviceAccountFromEnv } from "@/lib/database/firestore";
-import { isOnline, OFFLINE_AFTER_MS, pickHelper, type HelperHeartbeat } from "@/lib/helper/heartbeat";
 import { isHosted, providerId, usesRemoteJobs } from "@/lib/mode";
 
 const env = { ...process.env };
@@ -9,16 +8,13 @@ afterEach(() => {
 });
 
 describe("where the studio runs", () => {
-  it("a Mac runs Codex itself; Vercel queues for the helper Mac unless told otherwise", () => {
+  it("images always come from Curvet; on Vercel requests are kept in Firestore", () => {
     delete process.env.VERCEL;
+    delete process.env.STUDIO_HOSTED;
     delete process.env.IMAGE_PROVIDER;
-    expect([isHosted(), providerId(), usesRemoteJobs()]).toEqual([false, "codex", false]);
+    expect([isHosted(), providerId(), usesRemoteJobs()]).toEqual([false, "curvet", false]);
     process.env.VERCEL = "1";
-    expect([isHosted(), providerId(), usesRemoteJobs()]).toEqual([true, "helper", true]);
-    process.env.IMAGE_PROVIDER = "codex";
-    expect(providerId()).toBe("helper");
-    process.env.IMAGE_PROVIDER = "openai";
-    expect([providerId(), usesRemoteJobs()]).toEqual(["openai", false]);
+    expect([isHosted(), providerId(), usesRemoteJobs()]).toEqual([true, "curvet", true]);
   });
 });
 
@@ -36,21 +32,5 @@ describe("Firebase key from the FIREBASE_SERVICE_ACCOUNT setting", () => {
     expect(serviceAccountFromEnv("")).toBeNull();
     expect(serviceAccountFromEnv("not json")).toBeNull();
     expect(serviceAccountFromEnv(JSON.stringify({ project_id: "x" }))).toBeNull();
-  });
-});
-
-describe("helper Mac online status", () => {
-  const beat = (id: string, agoMs: number, ready = true): HelperHeartbeat => ({ helperId: id, hostname: id, lastSeen: new Date(Date.now() - agoMs).toISOString(), startedAt: "", ready, detail: "", model: "m", busyJobId: null });
-
-  it("is online until two heartbeats are missed", () => {
-    expect(isOnline(beat("a", 1000))).toBe(true);
-    expect(isOnline(beat("a", OFFLINE_AFTER_MS + 1000))).toBe(false);
-    expect(isOnline(null)).toBe(false);
-  });
-
-  it("prefers a ready, online helper", () => {
-    expect(pickHelper([beat("old", 10 * 60_000), beat("notready", 1000, false), beat("good", 5000)])?.helperId).toBe("good");
-    expect(pickHelper([beat("old", 10 * 60_000)])?.helperId).toBe("old");
-    expect(pickHelper([])).toBeNull();
   });
 });

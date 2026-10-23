@@ -80,7 +80,7 @@ export class MockProvider implements ImageProvider {
     const code = m[1] as ProviderError["code"];
     const messages: Partial<Record<ProviderError["code"], string>> = {
       content_refused: "The image service declined this request under its content rules. Try describing it differently.",
-      usage_limit: "Your ChatGPT plan has reached its image limit for now.",
+      usage_limit: "The Curvet account has run out of credits. Top up the balance in Curvet, then try again.",
       unavailable: "The image service can’t be reached right now. Try again.",
     };
     throw new ProviderError(code, messages[code] ?? "The test provider failed on purpose.");

@@ -1,20 +1,15 @@
 import "server-only";
 import { getProvider } from "@/lib/ai";
-import { handleProviderError, ProviderError } from "@/lib/ai/imageProvider";
-import { normalizeImageResult } from "@/lib/ai/normalize";
-import { getImageStore } from "@/lib/database/imageRepository";
 import { loadJob, markInterruptedJobs, persistJob } from "@/lib/database/jobRepository";
 import { newId } from "@/lib/ids";
 import { usesRemoteJobs } from "@/lib/mode";
 import { reserveRequest } from "@/lib/security/rateLimit";
-import { getDraft, putDraft } from "@/lib/storage/draftStore";
-import { inspectImage } from "@/lib/validation/files";
-import type { Job, JobError, JobKind, JobRequest, JobView, SourceRef } from "@/types/generation";
+import type { Job, JobError, JobKind, JobRequest, JobView } from "@/types/generation";
+import { executeJob } from "./execute";
 import { RemoteRunner } from "./remoteRunner";
 
 /*
- * The job runner (PRD §14.5, §15.2, §21.2). Requests queue here and run one at a time — ChatGPT plans throttle
- * parallel image jobs — in this server process. Each job moves queued → generating → completed | failed | cancelled,
+ * The job runner on a Mac (PRD §14.5, §15.2, §21.2). Requests queue here and run one at a time in this server process. Each job moves queued → generating → completed | failed | cancelled,
  * and only a real, verified provider image ever becomes "completed" (PRD §14.5, §26).
  *
  * Protection against duplicate paid requests: one active job per browser session, and a resubmitted idempotency key
@@ -169,44 +164,13 @@ export class JobRunner {
     this.controllers.set(job.id, controller);
     Object.assign(job, { status: "generating", startedAt: new Date().toISOString() });
     void persistJob(job);
-    const provider = getProvider();
-    try {
-      if (job.kind === "generate") {
-        const raw = await provider.generateImage({ prompt: job.request.composedPrompt, options: job.request.options }, controller.signal);
-        const image = await normalizeImageResult(raw, { aspect: job.request.options.aspect });
-        const draft = await putDraft(image.bytes, image, { origin: "generate", jobId: job.id });
-        this.finish(job, { status: "completed", output: draft, warnings: image.warnings });
-      } else {
-        const source = await loadSource(job.request.source!).catch((e: unknown) => {
-          throw new ProviderError("invalid_request", "The original image couldn’t be opened, so nothing was sent. Choose the image again.", { retryable: false, detail: String(e) });
-        });
-        const raw = await provider.editImage({ prompt: job.request.composedPrompt, image: source }, controller.signal);
-        const image = await normalizeImageResult(raw, { source });
-        const draft = await putDraft(image.bytes, image, { origin: "edit", jobId: job.id, parent: job.request.source, instruction: job.request.instruction });
-        this.finish(job, { status: "completed", output: draft, warnings: image.warnings });
-      }
-    } catch (e) {
-      if (this.cancelRequested.has(job.id)) {
-        this.finish(job, { status: "cancelled" });
-        return;
-      }
-      const err = e instanceof ProviderError ? e : handleProviderError(e);
-      if (err.options.detail) console.warn(`[jobs] ${job.id} failed (${err.code}): ${err.options.detail}`);
-      this.finish(job, { status: "failed", error: { code: err.code, message: err.message, retryable: err.retryable, resetAt: err.resetAt } });
-    }
+    const done = await executeJob(job, getProvider(), controller.signal, () => this.cancelRequested.has(job.id));
+    Object.assign(job, done);
+    void persistJob(job);
   }
 }
 
-/** The picture an edit starts from — a library image or an unsaved draft. Never modified. */
-export async function loadSource(ref: SourceRef) {
-  if (ref.kind === "image") {
-    const { record, bytes } = await getImageStore().getFile(ref.id);
-    return { bytes, format: record.format, width: record.width, height: record.height };
-  }
-  const { bytes } = await getDraft(ref.id);
-  const info = await inspectImage(bytes, { maxBytes: 40 * 1024 * 1024 });
-  return { bytes, format: info.format, width: info.width, height: info.height };
-}
+export { loadSource } from "./execute";
 
 /** What the API routes need from a job queue — the local runner and the live site's remote queue both provide it. */
 export interface JobQueue {

@@ -26,7 +26,7 @@ npm run dev                                         # http://127.0.0.1:3109
 
 `npm run dev:emulator` runs the app against a **local test database** instead of the real one. It starts empty; run `FIRESTORE_EMULATOR_HOST=127.0.0.1:8181 npm run seed` in a second window to add the starting photos.
 
-The studio only accepts connections from this Mac (127.0.0.1). It uses your ChatGPT plan, so nobody else on the network can reach it.
+On a Mac, the studio only accepts connections from that Mac (127.0.0.1). The live site is behind a passcode.
 
 ---
 
@@ -34,8 +34,7 @@ The studio only accepts connections from this Mac (127.0.0.1). It uses your Chat
 
 | Thing | Status | How |
 |---|---|---|
-| **AI: ChatGPT via Codex** | ✅ Working | The Codex app on this Mac, signed in with your ChatGPT plan (`codex login`). Model `gpt-5.6-terra`. `gpt-5.5` is no longer allowed on ChatGPT plans. No API key and no per-image bill, but plan limits apply. The studio runs Codex with `--ignore-user-config`, so your own Codex add-ons (MCP servers, plugins, hooks) can't slow it down or stall it |
-| **Live site AI** | ⚠️ Needs the helper | The live site uses the helper Mac. See [`docs/live-site.md`](docs/live-site.md) |
+| **AI images: Curvet (GPT Image)** | Needs the key | The server calls the Curvet API with your app key (Image category). The model is OpenAI's `gpt-image-2`, which you can change with `CURVET_IMAGE_MODEL`. Paid from your Curvet balance. No computer has to stay on |
 | **Storage: Firestore** | ⚠️ Needs one step | The Firebase project **`arnifi-image-studio`** exists, with its database (Doha region, `me-central1`). Its security rules block all direct access, and only this app's server can read or write. The one missing piece is the key file, below |
 | **Starting photos** | ✅ Ready | 24 text-free Arnifi photos listed in `seed/manifest.json`. They're read from their original folders and never moved |
 
@@ -60,8 +59,8 @@ Until the key is there, the library shows the starting photos as **"Demo fixture
   - The files themselves are split into pieces of 900 KB or less, in `blobs/…/chunks`, and checked with a fingerprint (SHA-256) when read back. Thumbnails go in `thumbs`.
   - Guideline edits go in `promptTemplates`, request history in `jobs`, and daily usage in `usage`.
   - This stays on Firebase's free plan: about 1 GB in total (roughly 300–500 images), 50,000 reads and 20,000 writes a day.
-- **AI requests run one at a time** on this Mac's server, never in the browser. ChatGPT usually takes **1–2 minutes** per image. You can leave the page; it keeps going.
-- **Honest options.** With the ChatGPT connection, the shape (square, portrait or landscape) is *asked for*, and ChatGPT picks the final size. The real size is shown with a note if it differs. Quality and transparent backgrounds aren't available, so they're shown as unavailable rather than as switches that do nothing.
+- **AI requests** go from the studio's server to Curvet (GPT Image), never from the browser. Each one takes about a minute. You can leave the page; it keeps going.
+- **Honest options.** Shapes come out at exact sizes: 1024 × 1024, 1024 × 1536 or 1536 × 1024. Quality and transparent backgrounds aren't available through Curvet yet, so they're shown as unavailable rather than as switches that do nothing.
 - **Prompts** are built in this order:
   1. Your words, which always win.
   2. The guideline, if you picked one. Empty fill-in fields follow your words.
@@ -83,20 +82,13 @@ Until the key is there, the library shows the starting photos as **"Demo fixture
 | Command | What it checks | Result |
 |---|---|---|
 | `npm run typecheck` / `npm run lint` | Code correctness and style | Clean |
-| `npm test` | 50 unit tests: prompt building, validation, file checks, metadata, versions, search, file chunks, Codex and OpenAI error handling, limits, demo fixtures, live-site mode, key-from-setting, helper online status | 50 passed |
-| `npm run test:integration` | 23 tests of the real API routes against a local Firestore. Covers upload, search, download (PNG keeps transparency, JPG turns it white, no resizing), generate, save, edit chains, versions, duplicate and limit guards, failures and guideline edits. Also covers **live-site mode**: requests made by a helper, cancel, helper offline, uploads in pieces, and every server seeing new images | 23 passed |
+| `npm test` | 46 unit tests: prompt building, validation, file checks, metadata, versions, search, file chunks, Curvet requests and error handling, limits, demo fixtures, live-site mode, key-from-setting | 46 passed |
+| `npm run test:integration` | 25 tests of the real API routes against a local Firestore. Covers upload, search, download (PNG keeps transparency, JPG turns it white, no resizing), generate, save, edit chains, versions, duplicate and limit guards, failures and guideline edits. Also covers **live-site mode**: the server makes the image, cancel, picking up orphaned requests, uploads in pieces, and every server seeing new images | 25 passed |
 | `npm run test:e2e` | 6 browser journeys (PRD §25 A–E plus error states and a phone-width check) on a production build with the test provider | 6 passed |
-| `npm run test:live` | **Real** ChatGPT: one generation and one edit (uses 2 images of your plan) | See below |
+| `npm run test:live` | **Real** Curvet: one generation and one edit (costs the credits for 2 images) | See below |
 | `npm run build` | Production build | Passes |
 
-**Real-provider check, 23 Oct 2026:** the PRD §27 stakeholder demo was run end to end in the browser with real ChatGPT:
-- **Generate:** the Corporate Photography guideline plus the demo brief returned a 1536 × 1024 image in 67 s.
-- **Save:** saved to the library with its details.
-- **Edit:** "brighter, more minimal background" returned a result in about 1 min 40 s.
-- **Compare and save:** shown side by side, saved as v2 with v1 kept.
-- **Download:** downloaded as PNG.
-
-That run used the local test database because the Firestore key wasn't in place yet.
+**Real-provider check:** see the latest live Curvet run noted at the end of this README.
 
 Automated tests use a **test provider** that draws plain test patterns. It only switches on with `STUDIO_TEST_MODE=1`, and the header then shows a "Test provider" badge, so test images can never pass for AI results.
 
@@ -104,31 +96,24 @@ Automated tests use a **test provider** that draws plain test patterns. It only 
 
 ## The live site (Vercel)
 
-**https://arnifi-ai-image.vercel.app**: stakeholders open the link and enter the passcode. They install nothing.
+**https://arnifi-ai-image.vercel.app**: stakeholders open the link and enter the passcode. Nothing to install, and no computer needs to stay on.
 
-Vercel's servers can't run Codex or use a ChatGPT sign-in. So the live site queues requests in Firestore, and a **helper Mac** signed in to your ChatGPT plan makes the images. To start the helper, double-click `Start Image Studio Helper.command`.
+The website's server sends each request to Curvet (GPT Image) and stores the result in Firestore. The settings, costs and troubleshooting are in [`docs/live-site.md`](docs/live-site.md).
 
-**Full setup, daily use and troubleshooting: [`docs/live-site.md`](docs/live-site.md).** In short, it needs three things:
-1. `STUDIO_PASSCODE` and `FIREBASE_SERVICE_ACCOUNT` set in Vercel.
-2. `npm run seed` run once.
-3. The helper running.
-
-How the live site differs from running on a Mac:
-- Unsaved results are stored in Firestore, not on disk.
-- Usage limits are counted in Firestore.
-- Uploads over 4 MB are sent in pieces, and downloads over 4 MB are streamed, to get past Vercel's 4.5 MB limit.
+On Vercel, each request can reach a different server, so the live site works a little differently from the Mac version:
+- Requests and unsaved results are kept in Firestore.
+- Each image is made by the server that received the request, after it has answered. It gets up to 5 minutes.
+- Uploads over 4 MB are sent in pieces, and downloads over 4 MB are streamed, because of Vercel's 4.5 MB limit.
 - A passcode is required.
 
 ## Known limitations
 
 - **Edits aren't pixel-perfect.** The AI redraws the picture, and small details can shift. Text inside images isn't editable lettering. The editor says this on screen.
-- **Shape is a request.** ChatGPT has no exact size, quality or transparency controls. The OpenAI API route has them.
-- **Image limits.** ChatGPT plan usage limits apply. When hit, the app shows when you can try again.
-- **The live site needs the helper Mac running** for Generate and Edit. It makes one image at a time, and the team shares one ChatGPT plan's limits.
+- **Curvet limits.** Curvet's own rate limits and your balance apply. When hit, the app says so and when to try again, if Curvet reports it.
+- **Every request costs Curvet credits**, including failed ones. The studio's daily and hourly caps limit the spend.
 - **Search size.** Search reads all image details into memory. That's fine for hundreds or a few thousand images, but a larger library would need a search index.
 - **No deleting from the UI.** Images can't be deleted yet; this isn't required by the PRD.
 - **P1 features not built:** favourites, collections, masks, batch generation, text overlays, bulk download, multiple providers in the UI.
-- **Codex keeps copies.** It stores its own copy of each generated image in `~/.codex/generated_images` on the Mac that made it. The studio doesn't delete files there.
 - **Rights.** The 24 starting photos come from the Arnifi listing-card archive. Their original source and rights weren't verified; the attribution field says where they came from.
 - **Light theme only.** It's an internal desktop tool, and the Design System file has no dark screens.
 - **Browsers.** Tested in Chrome on macOS. Safari and Edge are not yet checked.
@@ -137,7 +122,7 @@ How the live site differs from running on a Mac:
 
 ## Decisions (from the PRD and your answers)
 
-- **AI:** your ChatGPT plan via Codex, chosen over an OpenAI API key.
+- **AI:** the Curvet API with a GPT image model. This replaced the first approach, ChatGPT via Codex plus a helper Mac, so that no computer has to stay on.
 - **Storage:** everything in Firestore, files included, in a new dedicated Firebase project.
 - **Seed:** 24 clean Arnifi photos. I left out the licence mock-ups, because they have text and third-party logos baked in.
 - **Design:** the Arnifi Design System tokens and components, copied from the DesignSync QA build:
@@ -151,7 +136,7 @@ How the live site differs from running on a Mac:
 src/app/              screens (library, generate, edit, prompts, settings) and api/ routes
 src/features/         the four modules' UI
 src/components/       shared UI (Design System parts, header, dialogs)
-src/lib/ai/           image providers: codexProvider (default), openaiProvider, mockProvider (tests)
+src/lib/ai/           image providers: curvetProvider (GPT Image via Curvet), mockProvider (tests)
 src/lib/database/     Firestore: images, guidelines, jobs, demo fixtures
 src/lib/storage/      file chunks in Firestore, unsaved drafts on disk
 src/lib/prompts/      prompt composer

@@ -47,9 +47,9 @@ export function Settings() {
               <dt className="text-muted">Model</dt>
               <dd>{status.ai.model}</dd>
               <dt className="text-muted">Shapes</dt>
-              <dd>{status.options.aspect.exact ? "Square, portrait and landscape at exact sizes" : "Square, portrait or landscape (requested; ChatGPT sets the final size)"}</dd>
+              <dd>{status.options.aspect.exact ? "Square 1024 × 1024, portrait 1024 × 1536, landscape 1536 × 1024" : "Square, portrait or landscape (requested)"}</dd>
               <dt className="text-muted">Quality</dt>
-              <dd>{status.options.quality.supported ? "Standard or high" : "Set by ChatGPT"}</dd>
+              <dd>{status.options.quality.supported ? "Standard or high" : "The model’s default"}</dd>
               <dt className="text-muted">Transparency</dt>
               <dd>{status.options.background.supported ? "Available (PNG)" : "Not available"}</dd>
               <dt className="text-muted">Last checked</dt>
@@ -75,7 +75,6 @@ export function Settings() {
                         "Open that file in TextEdit, select everything (⌘A) and copy it (⌘C).",
                         "Open vercel.com → this project → Settings → Environment Variables. Add FIREBASE_SERVICE_ACCOUNT, paste the copied text as the value, choose Production, and save.",
                         "Open Deployments → ⋯ on the latest one → Redeploy. Then press Check Again here.",
-                        "Also put the same file on the helper Mac as ~/.config/arnifi-image-studio/firebase-sa.json — the helper needs it too.",
                       ]
                     : [
                         `Open console.firebase.google.com → project “${status.storage.projectId ?? "arnifi-image-studio"}” → Project settings → Service accounts.`,
@@ -100,10 +99,10 @@ export function Settings() {
           <Card className="p-6">
             <h2 className="text-sh7 font-semibold text-ink">About this tool</h2>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-p3 text-dusk-800">
-              {status.mode === "helper" ? (
+              {status.mode === "server" ? (
                 <>
-                  <li>This is the online copy{status.passcode ? ", behind a passcode" : ""}. Nobody needs to install anything to use it.</li>
-                  <li>Images are made by the helper Mac with its ChatGPT plan, one at a time. The helper must be running for Generate and Edit to work; browsing and downloading always work.</li>
+                  <li>This is the online copy{status.passcode ? ", behind a passcode" : ""}. Nobody needs to install anything to use it, and no computer needs to stay on.</li>
+                  <li>Images are made by OpenAI’s GPT Image model through Curvet, paid from the Curvet balance.</li>
                   <li>Unsaved results are kept for 24 hours, then removed.</li>
                 </>
               ) : (

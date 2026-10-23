@@ -1,23 +1,18 @@
 /*
- * Where this copy of Image Studio runs, and how image requests are processed.
- *
- *   local  (default on a Mac)  — the server itself runs Codex, signed in with the ChatGPT plan on that Mac.
- *   helper (default on Vercel) — the website only queues requests in Firestore; a helper program on a Mac that is
- *                                signed in to ChatGPT picks them up (`npm run helper`). Vercel's servers can't run
- *                                Codex or use anyone's ChatGPT sign-in, so this is how the live site gets images.
+ * Where this copy of Image Studio runs. Images always come from the Curvet API (GPT Image); only the bookkeeping differs:
+ *   on a Mac   — requests run inside this server process; unsaved results go to the .data folder.
+ *   on Vercel  — every request may reach a different server, so requests and unsaved results are kept in Firestore,
+ *                and each request is processed by the server that received it, after it has answered (Next `after()`).
  */
 export function isHosted(): boolean {
   return process.env.VERCEL === "1" || process.env.STUDIO_HOSTED === "1";
 }
 
 export function providerId(): string {
-  const wanted = process.env.IMAGE_PROVIDER?.trim().toLowerCase();
-  // Codex can't run on Vercel's servers, so on the live site "codex" means "ChatGPT via the helper Mac".
-  if (isHosted() && (!wanted || wanted === "codex")) return "helper";
-  return wanted || "codex";
+  return process.env.IMAGE_PROVIDER?.trim().toLowerCase() || "curvet";
 }
 
-/** Remote jobs: queued in Firestore and processed by the helper Mac, with results stored in Firestore too. */
+/** Requests and unsaved results live in Firestore (the live site), not in this server's memory and disk. */
 export function usesRemoteJobs(): boolean {
-  return providerId() === "helper";
+  return isHosted();
 }

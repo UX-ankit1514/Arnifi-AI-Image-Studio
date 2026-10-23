@@ -4,7 +4,7 @@ import { PASS_COOKIE, passToken, SESSION_COOKIE } from "@/lib/security/session";
 /*
  * Runs before every request (Next 16 "proxy", formerly middleware):
  *   1. passcode gate (STUDIO_PASSCODE) — optional on a Mac, REQUIRED on the live site: a public link must not let
- *      strangers browse internal images or use the ChatGPT plan behind the helper Mac (PRD §21.1),
+ *      strangers browse internal images or spend the studio's Curvet credits (PRD §21.1),
  *   2. same-origin check on changing API calls, so other websites can't trigger paid requests (PRD §21.1),
  *   3. an anonymous session cookie for per-session limits.
  */

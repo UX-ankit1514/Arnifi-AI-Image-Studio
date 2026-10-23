@@ -15,8 +15,7 @@
     "test:e2e": "playwright test",
     "test:live": "tsx --conditions=react-server scripts/live-check.ts",
     "seed": "tsx --conditions=react-server scripts/seed.ts",
-    "firebase": "firebase",
-    "helper": "tsx --conditions=react-server scripts/helper.ts"
+    "firebase": "firebase"
   },
   "engines": {
     "node": ">=20.9"

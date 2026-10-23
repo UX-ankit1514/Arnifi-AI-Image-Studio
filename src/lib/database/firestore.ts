@@ -23,7 +23,6 @@ export const COLLECTIONS = {
   jobs: "jobs",
   usage: "usage",
   drafts: "drafts",
-  helpers: "helpers",
   uploads: "uploads",
   meta: "meta",
 } as const;
@@ -68,7 +67,7 @@ export function storageConfig(): StorageConfig {
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim() || null;
   if (process.env.FIRESTORE_EMULATOR_HOST) {
     // The test database's own project name (set by `firebase emulators:exec`), never the real project from .env.local —
-    // otherwise the app, the helper and the seed script could each write to a different test namespace.
+    // otherwise the app and the seed script could write to different test namespaces.
     return { mode: "emulator", projectId: process.env.GCLOUD_PROJECT || "demo-image-studio", reason: null };
   }
   if (process.env.STUDIO_STORAGE === "none") return { mode: "none", projectId, reason: "Storage is switched off for this run." };

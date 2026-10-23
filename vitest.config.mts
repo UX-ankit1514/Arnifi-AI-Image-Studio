@@ -17,7 +17,7 @@ export default defineConfig({
       {
         resolve: { alias },
         // Unit tests never touch a database, even once the real Firebase key is on this computer.
-        test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node", testTimeout: 20_000, env: { STUDIO_STORAGE: "none", IMAGE_PROVIDER: "mock" } },
+        test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node", testTimeout: 20_000, env: { STUDIO_STORAGE: "none", IMAGE_PROVIDER: "mock", STUDIO_TEST_MODE: "1" } },
       },
       {
         resolve: { alias },
