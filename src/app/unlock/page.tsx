@@ -11,6 +11,22 @@ export const metadata: Metadata = { title: "Enter Passcode" };
 export default async function UnlockPage({ searchParams }: PageProps<"/unlock">) {
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : "/library";
+  if (params.setup) {
+    return (
+      <Container className="flex justify-center py-16">
+        <Card className="w-full max-w-xl p-8">
+          <h1 className="font-serif text-l4 font-semibold text-heading">One step before this site opens</h1>
+          <p className="mt-2 text-p3 text-muted">This is the online copy of an internal tool, so it needs a passcode. Without one, anyone with the link could see the library and use the ChatGPT plan behind it.</p>
+          <ol className="mt-5 flex list-decimal flex-col gap-2 pl-5 text-p3 text-dusk-800">
+            <li>Open vercel.com → this project → Settings → Environment Variables.</li>
+            <li>Add <span className="font-semibold text-ink">STUDIO_PASSCODE</span> with a passcode of your choice, for Production.</li>
+            <li>Open Deployments, then ⋯ → Redeploy on the latest one.</li>
+            <li>Share the link and the passcode with your team.</li>
+          </ol>
+        </Card>
+      </Container>
+    );
+  }
   return (
     <Container className="flex justify-center py-16">
       <Card className="w-full max-w-md p-8">

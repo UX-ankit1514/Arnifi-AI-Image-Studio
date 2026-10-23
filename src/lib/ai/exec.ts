@@ -46,7 +46,11 @@ function stop(child: ChildProcess) {
   if (!child.killed) child.kill("SIGTERM");
 }
 
-export function run(bin: string, args: string[], opts: { cwd?: string; timeoutMs?: number; signal?: AbortSignal } = {}): Promise<RunResult> {
+/**
+ * `doneWhen` is checked every 2 s; once it says the work is done, the CLI gets 5 s to exit on its own and is then
+ * stopped. That ends runs where Codex has delivered the image but keeps running afterwards.
+ */
+export function run(bin: string, args: string[], opts: { cwd?: string; timeoutMs?: number; signal?: AbortSignal; doneWhen?: () => Promise<boolean> } = {}): Promise<RunResult> {
   return new Promise((resolve) => {
     let child: ChildProcess;
     try {
@@ -69,10 +73,21 @@ export function run(bin: string, args: string[], opts: { cwd?: string; timeoutMs
     };
     if (opts.signal?.aborted) onAbort();
     opts.signal?.addEventListener("abort", onAbort, { once: true });
+    let watcher: ReturnType<typeof setInterval> | undefined;
+    if (opts.doneWhen) {
+      const check = opts.doneWhen;
+      watcher = setInterval(async () => {
+        if (await check().catch(() => false)) {
+          clearInterval(watcher);
+          setTimeout(() => stop(child), 5_000);
+        }
+      }, 2_000);
+    }
     child.stdout?.on("data", (c) => (stdout += c));
     child.stderr?.on("data", (c) => (stderr += c));
     const finish = (code: number) => {
       clearTimeout(timer);
+      if (watcher) clearInterval(watcher);
       opts.signal?.removeEventListener("abort", onAbort);
       resolve({ code, stdout, stderr, timedOut, aborted });
     };

@@ -1,5 +1,7 @@
 import "server-only";
+import { providerId } from "@/lib/mode";
 import { CodexProvider } from "./codexProvider";
+import { HelperProvider } from "./helperProvider";
 import type { ImageProvider } from "./imageProvider";
 import { MockProvider } from "./mockProvider";
 import { OpenAIProvider } from "./openaiProvider";
@@ -13,11 +15,11 @@ export function isTestMode(): boolean {
 }
 
 export function getProvider(): ImageProvider {
-  const wanted = (process.env.IMAGE_PROVIDER ?? "codex").trim().toLowerCase();
+  const wanted = providerId();
   // The test provider makes test patterns; never let it stand in for real AI outside automated tests.
   const key = wanted === "mock" && !isTestMode() ? "codex" : wanted;
   if (g.__imageProvider?.key === key) return g.__imageProvider.provider;
-  const provider: ImageProvider = key === "openai" ? new OpenAIProvider() : key === "mock" ? new MockProvider() : new CodexProvider();
+  const provider: ImageProvider = key === "openai" ? new OpenAIProvider() : key === "mock" ? new MockProvider() : key === "helper" ? new HelperProvider() : new CodexProvider();
   g.__imageProvider = { key, provider };
   return provider;
 }

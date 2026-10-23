@@ -38,6 +38,7 @@ export function GeneratingCard({ job, providerLabel, onCancel, cancelling }: { j
           {queued && job?.queuePosition ? `Another image is being made first (${job.queuePosition} ahead).` : `${providerLabel} usually takes 1–2 minutes.`}
           {job?.startedAt && <span className="tabular-nums"> {elapsed(job.startedAt, now)} so far.</span>}
         </p>
+        {job?.note && <p className="mt-2 text-p3 font-medium text-tang-800">{job.note}</p>}
         <p className="mt-1 text-p4 text-muted">You can leave this page — the image keeps going and appears here when you come back.</p>
       </div>
       <Button variant="tertiary" icon={Square} onClick={onCancel} loading={cancelling} disabled={!job}>

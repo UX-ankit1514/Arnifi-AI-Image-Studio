@@ -106,7 +106,9 @@ export function ImageLibrary() {
 
       {fixtures && (
         <Notice tone="warning" title="Demo fixtures — not saved" action={<ButtonLink href="/settings" variant="text" arrow>Finish Setup</ButtonLink>}>
-          Saving isn’t set up yet, so these are the starting Arnifi photos shown read-only. Uploads and saved images will appear here once the Firebase key is added.
+          {data?.total
+            ? "Saving isn’t set up yet, so these are the starting Arnifi photos shown read-only. Uploads and saved images will appear here once the Firebase key is added."
+            : "Saving isn’t set up yet, so the library is empty for now. Images will appear here once the Firebase key is added — Settings shows how."}
         </Notice>
       )}
 

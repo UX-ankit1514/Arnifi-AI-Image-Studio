@@ -68,12 +68,22 @@ export function Settings() {
             </dl>
             {status.storage.mode === "none" && (
               <Steps
-                steps={[
-                  `Open console.firebase.google.com → project “${status.storage.projectId ?? "arnifi-image-studio"}” → Project settings → Service accounts.`,
-                  "Press Generate new private key, then Generate key. A .json file downloads.",
-                  "Rename it to firebase-sa.json and move it into the folder ~/.config/arnifi-image-studio/ on this Mac.",
-                  "Restart Image Studio, then press Check Again.",
-                ]}
+                steps={
+                  status.hosted
+                    ? [
+                        `Open console.firebase.google.com → project “${status.storage.projectId ?? "arnifi-image-studio"}” → Project settings → Service accounts, and press Generate new private key. A .json file downloads.`,
+                        "Open that file in TextEdit, select everything (⌘A) and copy it (⌘C).",
+                        "Open vercel.com → this project → Settings → Environment Variables. Add FIREBASE_SERVICE_ACCOUNT, paste the copied text as the value, choose Production, and save.",
+                        "Open Deployments → ⋯ on the latest one → Redeploy. Then press Check Again here.",
+                        "Also put the same file on the helper Mac as ~/.config/arnifi-image-studio/firebase-sa.json — the helper needs it too.",
+                      ]
+                    : [
+                        `Open console.firebase.google.com → project “${status.storage.projectId ?? "arnifi-image-studio"}” → Project settings → Service accounts.`,
+                        "Press Generate new private key, then Generate key. A .json file downloads.",
+                        "Rename it to firebase-sa.json and move it into the folder ~/.config/arnifi-image-studio/ on this Mac.",
+                        "Restart Image Studio, then press Check Again.",
+                      ]
+                }
               />
             )}
           </StatusCard>
@@ -83,15 +93,25 @@ export function Settings() {
               <div className={cn("h-full rounded-full", status.usage.used >= status.usage.limit ? "bg-ruby-700" : "bg-arnique-900")} style={{ width: `${Math.min(100, (status.usage.used / Math.max(1, status.usage.limit)) * 100)}%` }} />
             </div>
             <p className="mt-3 text-p3 text-dusk-800">
-              Every generate or edit request counts, including ones that fail. The studio allows {status.usage.limit} a day and {status.usage.perSessionPerHour} an hour per browser, and makes one image at a time. Limits are changed in the server settings (.env.local).
+              Every generate or edit request counts, including ones that fail. The studio allows {status.usage.limit} a day and {status.usage.perSessionPerHour} an hour per browser, and makes one image at a time. Limits are changed in the {status.hosted ? "website’s environment variables on Vercel" : "server settings (.env.local)"}.
             </p>
           </StatusCard>
 
           <Card className="p-6">
             <h2 className="text-sh7 font-semibold text-ink">About this tool</h2>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-p3 text-dusk-800">
-              <li>Image Studio runs on this Mac and only accepts connections from it{status.passcode ? ", behind a passcode" : ""}.</li>
-              <li>Unsaved results are kept on this Mac for 24 hours, then removed.</li>
+              {status.mode === "helper" ? (
+                <>
+                  <li>This is the online copy{status.passcode ? ", behind a passcode" : ""}. Nobody needs to install anything to use it.</li>
+                  <li>Images are made by the helper Mac with its ChatGPT plan, one at a time. The helper must be running for Generate and Edit to work; browsing and downloading always work.</li>
+                  <li>Unsaved results are kept for 24 hours, then removed.</li>
+                </>
+              ) : (
+                <>
+                  <li>Image Studio runs on this Mac and only accepts connections from it{status.passcode ? ", behind a passcode" : ""}.</li>
+                  <li>Unsaved results are kept on this Mac for 24 hours, then removed.</li>
+                </>
+              )}
               <li>Editing always creates a new version; originals are never overwritten.</li>
               <li>Prompt guidelines are suggested defaults based on Arnifi’s visual style, not approved brand prompts.</li>
             </ul>

@@ -61,13 +61,27 @@ export function noSession() {
   return apiError(401, "no_session", "Your session has expired. Reload the page and try again.");
 }
 
+/** Vercel caps a normal response at 4.5 MB; bigger files are streamed, which has no such limit. */
+const STREAM_ABOVE = 4 * 1024 * 1024;
+
 export function fileResponse(data: Buffer, mimeType: string, opts: { filename?: string; immutable?: boolean } = {}) {
   const headers: Record<string, string> = {
     "Content-Type": mimeType,
-    "Content-Length": String(data.length),
     "Cache-Control": opts.immutable ? "private, max-age=31536000, immutable" : "private, no-store",
     "X-Content-Type-Options": "nosniff",
   };
   if (opts.filename) headers["Content-Disposition"] = `attachment; filename="${opts.filename}"`;
-  return new NextResponse(new Uint8Array(data), { status: 200, headers });
+  if (data.length <= STREAM_ABOVE) {
+    headers["Content-Length"] = String(data.length);
+    return new NextResponse(new Uint8Array(data), { status: 200, headers });
+  }
+  let offset = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= data.length) return controller.close();
+      controller.enqueue(new Uint8Array(data.subarray(offset, offset + 1024 * 1024)));
+      offset += 1024 * 1024;
+    },
+  });
+  return new NextResponse(stream, { status: 200, headers });
 }

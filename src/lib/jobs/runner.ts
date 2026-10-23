@@ -5,10 +5,12 @@ import { normalizeImageResult } from "@/lib/ai/normalize";
 import { getImageStore } from "@/lib/database/imageRepository";
 import { loadJob, markInterruptedJobs, persistJob } from "@/lib/database/jobRepository";
 import { newId } from "@/lib/ids";
+import { usesRemoteJobs } from "@/lib/mode";
 import { reserveRequest } from "@/lib/security/rateLimit";
 import { getDraft, putDraft } from "@/lib/storage/draftStore";
 import { inspectImage } from "@/lib/validation/files";
 import type { Job, JobError, JobKind, JobRequest, JobView, SourceRef } from "@/types/generation";
+import { RemoteRunner } from "./remoteRunner";
 
 /*
  * The job runner (PRD §14.5, §15.2, §21.2). Requests queue here and run one at a time — ChatGPT plans throttle
@@ -206,8 +208,21 @@ export async function loadSource(ref: SourceRef) {
   return { bytes, format: info.format, width: info.width, height: info.height };
 }
 
-const g = globalThis as unknown as { __jobRunner?: JobRunner };
+/** What the API routes need from a job queue — the local runner and the live site's remote queue both provide it. */
+export interface JobQueue {
+  submit(kind: JobKind, request: JobRequest, sessionId: string, idempotencyKey: string | null): Promise<SubmitResult>;
+  get(id: string): Promise<JobView | null>;
+  cancel(id: string, sessionId: string): Job | null | Promise<Job | null>;
+  markSaved(jobId: string, imageId: string): void;
+}
 
-export function getRunner(): JobRunner {
-  return (g.__jobRunner ??= new JobRunner());
+const g = globalThis as unknown as { __jobRunner?: JobQueue; __jobRunnerKind?: string };
+
+export function getRunner(): JobQueue {
+  const kind = usesRemoteJobs() ? "remote" : "local";
+  if (!g.__jobRunner || g.__jobRunnerKind !== kind) {
+    g.__jobRunner = kind === "remote" ? new RemoteRunner() : new JobRunner();
+    g.__jobRunnerKind = kind;
+  }
+  return g.__jobRunner;
 }

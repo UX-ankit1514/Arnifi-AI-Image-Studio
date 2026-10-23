@@ -9,7 +9,7 @@ import { COLLECTIONS, getDb, hasStorage, StorageUnavailableError } from "./fires
  * override. The UI only ever reads guidelines from here.
  */
 
-const CACHE_MS = 60_000;
+const CACHE_MS = process.env.VERCEL === "1" ? 15_000 : 60_000;
 let cache: { at: number; overrides: Map<string, TemplatePatch & { updatedAt: string }> } | null = null;
 
 async function overrides() {

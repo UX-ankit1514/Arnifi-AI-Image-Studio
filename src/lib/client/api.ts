@@ -40,6 +40,7 @@ export const api = {
   patch: <T>(url: string, body: unknown) => send<T>(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   del: <T>(url: string) => send<T>(url, { method: "DELETE" }),
   upload: <T>(url: string, form: FormData) => send<T>(url, { method: "POST", body: form }),
+  put: <T>(url: string, body: Blob) => send<T>(url, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body }),
 };
 
 export function errorMessage(e: unknown): string {

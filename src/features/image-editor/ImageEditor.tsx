@@ -20,6 +20,7 @@ import { SaveToLibraryDialog } from "@/features/common/SaveToLibraryDialog";
 import { api, ApiClientError, errorMessage, newIdempotencyKey } from "@/lib/client/api";
 import { elapsed, formatDims, resetPhrase } from "@/lib/client/format";
 import { urls } from "@/lib/client/urls";
+import { uploadForEditing } from "@/lib/client/upload";
 import { useJob } from "@/lib/client/useJob";
 import { useStudioStatus } from "@/lib/client/useStatus";
 import { LIMITS } from "@/lib/validation/limits";
@@ -139,9 +140,7 @@ export function ImageEditor() {
     setUploadBusy(true);
     setUploadError(null);
     try {
-      const form = new FormData();
-      form.set("file", file);
-      const { draft } = await api.upload<{ draft: DraftInfo }>("/api/drafts", form);
+      const draft = await uploadForEditing(file, status?.hosted ?? false);
       replaceSource({ ref: { kind: "draft", id: draft.id }, title: file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim() || "Uploaded image", width: draft.width, height: draft.height, hasAlpha: draft.hasAlpha, origin: "upload" });
     } catch (e) {
       setUploadError(errorMessage(e));
@@ -443,6 +442,7 @@ function PendingPane({ job, onCancel, cancelling, label, ratio }: { job: JobView
         <p className="mt-1 text-p4 text-muted">
           {label} usually takes 1–2 minutes{job?.startedAt ? ` · ${elapsed(job.startedAt, now)}` : ""}.
         </p>
+        {job?.note && <p className="mt-2 text-p4 font-medium text-tang-800">{job.note}</p>}
       </div>
       <Button variant="tertiary" size="m" icon={Square} onClick={onCancel} loading={cancelling} className="relative">
         Cancel

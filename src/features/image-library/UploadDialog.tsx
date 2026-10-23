@@ -8,7 +8,9 @@ import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import { Notice } from "@/components/ui/Notice";
 import { TextField } from "@/components/ui/TextField";
 import { DEFAULT_CATEGORY, SUGGESTED_CATEGORIES } from "@/data/categories";
-import { api, errorMessage } from "@/lib/client/api";
+import { errorMessage } from "@/lib/client/api";
+import { uploadToLibrary } from "@/lib/client/upload";
+import { useStudioStatus } from "@/lib/client/useStatus";
 import { formatBytes } from "@/lib/client/format";
 import { parseTagList } from "@/lib/validation/schemas";
 import type { ImageRecord } from "@/types/image";
@@ -30,6 +32,7 @@ function UploadForm({ onUploaded, storageReady, categories, onCancel }: { onUplo
   const [tags, setTags] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status } = useStudioStatus();
 
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -46,13 +49,8 @@ function UploadForm({ onUploaded, storageReady, categories, onCancel }: { onUplo
     if (!file) return setError("Choose an image to upload.");
     setBusy(true);
     setError(null);
-    const form = new FormData();
-    form.set("file", file);
-    form.set("title", title);
-    form.set("category", category || DEFAULT_CATEGORY);
-    form.set("tags", parseTagList(tags).join(","));
     try {
-      const { image } = await api.upload<{ image: ImageRecord }>("/api/images", form);
+      const image = await uploadToLibrary(file, { title, category: category || DEFAULT_CATEGORY, tags: parseTagList(tags) }, status?.hosted ?? false);
       onUploaded(image);
     } catch (err) {
       setError(errorMessage(err));

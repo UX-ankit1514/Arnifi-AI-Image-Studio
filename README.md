@@ -34,7 +34,8 @@ The studio only accepts connections from this Mac (127.0.0.1). It uses your Chat
 
 | Thing | Status | How |
 |---|---|---|
-| **AI: ChatGPT via Codex** | ✅ Working | The Codex app on this Mac, signed in with your ChatGPT plan (`codex login`). Model `gpt-5.6-terra`. `gpt-5.5` is no longer allowed on ChatGPT plans. No API key and no per-image bill, but plan limits apply |
+| **AI: ChatGPT via Codex** | ✅ Working | The Codex app on this Mac, signed in with your ChatGPT plan (`codex login`). Model `gpt-5.6-terra`. `gpt-5.5` is no longer allowed on ChatGPT plans. No API key and no per-image bill, but plan limits apply. The studio runs Codex with `--ignore-user-config`, so your own Codex add-ons (MCP servers, plugins, hooks) can't slow it down or stall it |
+| **Live site AI** | ⚠️ Needs the helper | The live site uses the helper Mac. See [`docs/live-site.md`](docs/live-site.md) |
 | **Storage: Firestore** | ⚠️ Needs one step | The Firebase project **`arnifi-image-studio`** exists, with its database (Doha region, `me-central1`). Its security rules block all direct access, and only this app's server can read or write. The one missing piece is the key file, below |
 | **Starting photos** | ✅ Ready | 24 text-free Arnifi photos listed in `seed/manifest.json`. They're read from their original folders and never moved |
 
@@ -82,8 +83,8 @@ Until the key is there, the library shows the starting photos as **"Demo fixture
 | Command | What it checks | Result |
 |---|---|---|
 | `npm run typecheck` / `npm run lint` | Code correctness and style | Clean |
-| `npm test` | 45 unit tests: prompt building, validation, file checks, metadata, versions, search, file chunks, Codex and OpenAI error handling, limits, demo fixtures | 45 passed |
-| `npm run test:integration` | 16 tests of the real API routes against a local Firestore: upload, search, download (PNG keeps transparency, JPG turns it white, no resizing), generate, save, edit chains, versions, duplicate and limit guards, failures, guideline edits | 16 passed |
+| `npm test` | 50 unit tests: prompt building, validation, file checks, metadata, versions, search, file chunks, Codex and OpenAI error handling, limits, demo fixtures, live-site mode, key-from-setting, helper online status | 50 passed |
+| `npm run test:integration` | 23 tests of the real API routes against a local Firestore. Covers upload, search, download (PNG keeps transparency, JPG turns it white, no resizing), generate, save, edit chains, versions, duplicate and limit guards, failures and guideline edits. Also covers **live-site mode**: requests made by a helper, cancel, helper offline, uploads in pieces, and every server seeing new images | 23 passed |
 | `npm run test:e2e` | 6 browser journeys (PRD §25 A–E plus error states and a phone-width check) on a production build with the test provider | 6 passed |
 | `npm run test:live` | **Real** ChatGPT: one generation and one edit (uses 2 images of your plan) | See below |
 | `npm run build` | Production build | Passes |
@@ -101,29 +102,33 @@ Automated tests use a **test provider** that draws plain test patterns. It only 
 
 ---
 
-## Hosting it online later
+## The live site (Vercel)
 
-The ChatGPT/Codex connection only works on the Mac where Codex is signed in, so this MVP is meant to run on this Mac. To host it, for example on Vercel:
+**https://arnifi-ai-image.vercel.app**: stakeholders open the link and enter the passcode. They install nothing.
 
-1. **AI:** set `IMAGE_PROVIDER=openai` and `OPENAI_API_KEY` as server secrets. Models: `gpt-image-2.5-flare` for generating, `gpt-image-2.5-sunburst` for editing. Both can be changed in `.env.local`. This route is built and unit-tested with simulated responses, but **not yet run with a real key**. Each image is billed to that OpenAI account.
-2. **Storage:** give the host the Firebase key's contents as a secret and point `GOOGLE_APPLICATION_CREDENTIALS` at it.
-3. **Two changes are still needed for a hosted version:**
-   - Requests run inside the server process, which serverless hosts stop between requests. They would need a queue.
-   - Unsaved results live on local disk. They would need to move to Firestore.
+Vercel's servers can't run Codex or use a ChatGPT sign-in. So the live site queues requests in Firestore, and a **helper Mac** signed in to your ChatGPT plan makes the images. To start the helper, double-click `Start Image Studio Helper.command`.
 
-   Also turn on `STUDIO_PASSCODE` or proper sign-in, because a hosted URL is public.
+**Full setup, daily use and troubleshooting: [`docs/live-site.md`](docs/live-site.md).** In short, it needs three things:
+1. `STUDIO_PASSCODE` and `FIREBASE_SERVICE_ACCOUNT` set in Vercel.
+2. `npm run seed` run once.
+3. The helper running.
 
----
+How the live site differs from running on a Mac:
+- Unsaved results are stored in Firestore, not on disk.
+- Usage limits are counted in Firestore.
+- Uploads over 4 MB are sent in pieces, and downloads over 4 MB are streamed, to get past Vercel's 4.5 MB limit.
+- A passcode is required.
 
 ## Known limitations
 
 - **Edits aren't pixel-perfect.** The AI redraws the picture, and small details can shift. Text inside images isn't editable lettering. The editor says this on screen.
 - **Shape is a request.** ChatGPT has no exact size, quality or transparency controls. The OpenAI API route has them.
 - **Image limits.** ChatGPT plan usage limits apply. When hit, the app shows when you can try again.
+- **The live site needs the helper Mac running** for Generate and Edit. It makes one image at a time, and the team shares one ChatGPT plan's limits.
 - **Search size.** Search reads all image details into memory. That's fine for hundreds or a few thousand images, but a larger library would need a search index.
 - **No deleting from the UI.** Images can't be deleted yet; this isn't required by the PRD.
 - **P1 features not built:** favourites, collections, masks, batch generation, text overlays, bulk download, multiple providers in the UI.
-- **Codex keeps copies.** It stores its own copy of each generated image in `~/.codex/generated_images`. The studio doesn't delete files there.
+- **Codex keeps copies.** It stores its own copy of each generated image in `~/.codex/generated_images` on the Mac that made it. The studio doesn't delete files there.
 - **Rights.** The 24 starting photos come from the Arnifi listing-card archive. Their original source and rights weren't verified; the attribution field says where they came from.
 - **Light theme only.** It's an internal desktop tool, and the Design System file has no dark screens.
 - **Browsers.** Tested in Chrome on macOS. Safari and Edge are not yet checked.

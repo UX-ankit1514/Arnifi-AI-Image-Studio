@@ -12,12 +12,14 @@ import { ProviderError, type EditImageRequest, type GenerateImageRequest, type I
  * Generation and editing use Codex's built-in image tool — the invocation proven in Creative Studio and the relight
  * scripts: `codex exec … -s workspace-write -C <tmp> "<instruction + prompt>" [-i image]`, stdin closed.
  *
+ * `--ignore-user-config` runs Codex without the person's own ~/.codex/config.toml — no MCP servers, plugins, skills or
+ * hooks (the sign-in is still used). Those add-ons made runs slow and sometimes hung after the image was already made.
+ *
  * What it can't do, said honestly in getSupportedOptions(): the shape is requested in words (ChatGPT picks the final
  * size), there's no quality or transparency setting, and it works only on the computer where Codex is signed in.
  */
 
 const DEFAULT_MODEL = "gpt-5.6-terra";
-const DEFAULT_BASE_URL = "https://chatgpt.com/backend-api/codex";
 const IMAGE_TIMEOUT_MS = 10 * 60_000;
 
 const ASPECT_WORDS: Record<AspectRatio, string> = {
@@ -30,17 +32,14 @@ export function codexModel(): string {
   return process.env.CODEX_MODEL?.trim() || DEFAULT_MODEL;
 }
 
-/**
- * `~/.codex/config.toml` may route through a local proxy that can report a false "cooling down" 429, so by default we
- * talk to ChatGPT's Codex backend directly. CODEX_BASE_URL=config keeps whatever the config file says.
- */
+/** Optional: send Codex to another backend (CODEX_BASE_URL). By default it talks to ChatGPT directly. */
 function baseUrlArgs(): string[] {
-  const value = process.env.CODEX_BASE_URL?.trim() || DEFAULT_BASE_URL;
-  return value === "config" ? [] : ["-c", `openai_base_url=${JSON.stringify(value)}`];
+  const value = process.env.CODEX_BASE_URL?.trim();
+  return value ? ["-c", `openai_base_url=${JSON.stringify(value)}`] : [];
 }
 
 function baseArgs(): string[] {
-  return ["exec", "-c", "model_reasoning_effort=low", "--skip-git-repo-check", "--ephemeral", ...baseUrlArgs(), "-m", codexModel()];
+  return ["exec", "--ignore-user-config", "--ignore-rules", "-c", "model_reasoning_effort=low", "--skip-git-repo-check", "--ephemeral", ...baseUrlArgs(), "-m", codexModel()];
 }
 
 /** Reads a usage-limit message and its reset time, if Codex printed one. */
@@ -201,7 +200,8 @@ export class CodexProvider implements ImageProvider {
         await writeFile(source, image.format === "webp" ? await sharp(image.bytes).png().toBuffer() : image.bytes);
         args.push("-i", source); // -i goes after the prompt
       }
-      const result = await run(this.bin, args, { cwd: dir, timeoutMs: IMAGE_TIMEOUT_MS, signal });
+      // As soon as the finished PNG is in place, stop waiting — even if Codex lingers afterwards.
+      const result = await run(this.bin, args, { cwd: dir, timeoutMs: IMAGE_TIMEOUT_MS, signal, doneWhen: () => isStableFile(target) });
       const found = await this.collect(dir, target, result.stdout);
       if (found) return { bytes: found };
       const lastMessage = await readFile(lastMessageFile, "utf8").catch(() => "");
@@ -222,6 +222,24 @@ export class CodexProvider implements ImageProvider {
     }
     return null;
   }
+}
+
+const sizes = new Map<string, number>();
+
+/** True once the file exists, is non-empty and hasn't grown since the last check (the copy has finished). */
+async function isStableFile(path: string): Promise<boolean> {
+  try {
+    const size = (await stat(path)).size;
+    const before = sizes.get(path);
+    sizes.set(path, size);
+    if (size > 0 && before === size) {
+      sizes.delete(path);
+      return true;
+    }
+  } catch {
+    /* not there yet */
+  }
+  return false;
 }
 
 async function nonEmpty(path: string): Promise<boolean> {

@@ -43,11 +43,18 @@ export async function usageToday(): Promise<{ date: string; used: number; limit:
   }
 }
 
-export async function reserveRequest(sessionId: string, kind: "generate" | "edit"): Promise<JobError | null> {
+/**
+ * `sessionHits` (helper mode): the session's request times in the last hour, counted from Firestore — on Vercel each
+ * request can land on a different server, so an in-memory count would be wrong.
+ */
+export async function reserveRequest(sessionId: string, kind: "generate" | "edit", sessionHits?: number[]): Promise<JobError | null> {
   const limits = usageLimits();
   const now = Date.now();
-  if (sessions.count(sessionId, now) >= limits.perSessionPerHour) {
-    const resetAt = new Date(sessions.oldest(sessionId, now)! + 60 * 60_000).toISOString();
+  const hits = sessionHits ?? null;
+  const used = hits ? hits.filter((t) => now - t < 60 * 60_000).length : sessions.count(sessionId, now);
+  if (used >= limits.perSessionPerHour) {
+    const oldest = hits ? Math.min(...hits) : sessions.oldest(sessionId, now)!;
+    const resetAt = new Date(oldest + 60 * 60_000).toISOString();
     return { code: "rate_limited", message: `You’ve made ${limits.perSessionPerHour} image requests in the last hour. Take a short break and try again.`, retryable: true, resetAt };
   }
   const date = today();

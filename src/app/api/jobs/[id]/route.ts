@@ -20,8 +20,12 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/j
 export async function DELETE(request: NextRequest, { params }: RouteContext<"/api/jobs/[id]">) {
   const sessionId = sessionOf(request);
   if (!sessionId) return noSession();
-  const { id } = await params;
-  const job = getRunner().cancel(id, sessionId);
-  if (!job) return apiError(404, "not_found", "This request isn’t running any more.");
-  return ok({ job });
+  try {
+    const { id } = await params;
+    const job = await getRunner().cancel(id, sessionId);
+    if (!job) return apiError(404, "not_found", "This request isn’t running any more.");
+    return ok({ job });
+  } catch (e) {
+    return fromError(e);
+  }
 }

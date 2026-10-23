@@ -2,14 +2,15 @@ import "server-only";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { cert, getApps, initializeApp, type App, type ServiceAccount } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /*
  * Firestore connection (server only — the browser never talks to Firestore; the rules deny all client access).
  * Three modes:
  *   emulator  — FIRESTORE_EMULATOR_HOST is set (tests, `npm run dev:emulator`); never touches the real project
- *   firestore — a service-account key file is configured (the real "Arnifi Image Studio" project)
+ *   firestore — a service-account key is configured (the real "Arnifi Image Studio" project): as a key file on a Mac,
+ *               or, on Vercel, as the FIREBASE_SERVICE_ACCOUNT setting holding the key file's contents
  *   none      — no key yet: the library shows read-only demo fixtures and saving is switched off (PRD §16.5)
  */
 
@@ -21,6 +22,10 @@ export const COLLECTIONS = {
   templates: "promptTemplates",
   jobs: "jobs",
   usage: "usage",
+  drafts: "drafts",
+  helpers: "helpers",
+  uploads: "uploads",
+  meta: "meta",
 } as const;
 
 export type StorageMode = "emulator" | "firestore" | "none";
@@ -38,6 +43,21 @@ function expandHome(p: string): string {
   return p.startsWith("~/") ? join(homedir(), p.slice(2)) : p;
 }
 
+/** The key from the FIREBASE_SERVICE_ACCOUNT setting: the JSON itself, or the JSON base64-encoded. */
+export function serviceAccountFromEnv(raw = process.env.FIREBASE_SERVICE_ACCOUNT): (ServiceAccount & { project_id?: string }) | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  try {
+    const text = value.startsWith("{") ? value : Buffer.from(value, "base64").toString("utf8");
+    const json = JSON.parse(text) as { project_id?: string; client_email?: string; private_key?: string };
+    if (!json.client_email || !json.private_key) return null;
+    // Pasting into a settings form can turn the key's line breaks into literal "\n".
+    return { projectId: json.project_id, clientEmail: json.client_email, privateKey: json.private_key.replace(/\\n/g, "\n"), project_id: json.project_id };
+  } catch {
+    return null;
+  }
+}
+
 function keyPath(): string | null {
   const configured = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
   const path = configured ? expandHome(configured) : DEFAULT_KEY_PATH;
@@ -47,14 +67,21 @@ function keyPath(): string | null {
 export function storageConfig(): StorageConfig {
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim() || null;
   if (process.env.FIRESTORE_EMULATOR_HOST) {
-    return { mode: "emulator", projectId: projectId ?? "demo-image-studio", reason: null };
+    // The test database's own project name (set by `firebase emulators:exec`), never the real project from .env.local —
+    // otherwise the app, the helper and the seed script could each write to a different test namespace.
+    return { mode: "emulator", projectId: process.env.GCLOUD_PROJECT || "demo-image-studio", reason: null };
   }
   if (process.env.STUDIO_STORAGE === "none") return { mode: "none", projectId, reason: "Storage is switched off for this run." };
+  const fromEnv = serviceAccountFromEnv();
+  if (fromEnv) return { mode: "firestore", projectId: projectId ?? fromEnv.project_id ?? "arnifi-image-studio", reason: null };
+  if (process.env.FIREBASE_SERVICE_ACCOUNT?.trim()) {
+    return { mode: "none", projectId: projectId ?? "arnifi-image-studio", reason: "The FIREBASE_SERVICE_ACCOUNT setting isn’t a valid Firebase key. Paste the whole key file’s contents again." };
+  }
   if (!keyPath()) {
     return {
       mode: "none",
       projectId: projectId ?? "arnifi-image-studio",
-      reason: "The Firebase key file isn’t on this computer yet, so images can’t be saved.",
+      reason: process.env.VERCEL === "1" ? "The Firebase key hasn’t been added to this website’s settings yet, so images can’t be saved." : "The Firebase key file isn’t on this computer yet, so images can’t be saved.",
     };
   }
   return { mode: "firestore", projectId: projectId ?? "arnifi-image-studio", reason: null };
@@ -81,7 +108,7 @@ export function getDb(): Firestore {
     process.env.GOOGLE_CLOUD_PROJECT ??= cfg.projectId!;
     app = initializeApp({ projectId: cfg.projectId! }, "image-studio");
   }
-  else app = initializeApp({ credential: cert(keyPath()!), projectId: cfg.projectId! }, "image-studio");
+  else app = initializeApp({ credential: cert(serviceAccountFromEnv() ?? keyPath()!), projectId: cfg.projectId! }, "image-studio");
   const db = getFirestore(app);
   db.settings({ ignoreUndefinedProperties: true });
   g.__studioDb = db;

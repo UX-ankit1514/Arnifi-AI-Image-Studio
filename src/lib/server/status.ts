@@ -1,6 +1,7 @@
 import "server-only";
 import { getProvider, isTestMode } from "@/lib/ai";
 import { checkStorage, storageConfig } from "@/lib/database/firestore";
+import { isHosted, usesRemoteJobs } from "@/lib/mode";
 import { usageLimits, usageToday } from "@/lib/security/rateLimit";
 import type { StudioStatus } from "@/types/status";
 
@@ -16,5 +17,7 @@ export async function studioStatus(force = false): Promise<StudioStatus> {
     usage: { ...usage, perSessionPerHour: usageLimits().perSessionPerHour },
     testMode: isTestMode(),
     passcode: Boolean(process.env.STUDIO_PASSCODE?.trim()),
+    hosted: isHosted(),
+    mode: usesRemoteJobs() ? "helper" : "local",
   };
 }

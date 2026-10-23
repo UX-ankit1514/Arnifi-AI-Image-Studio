@@ -14,8 +14,9 @@ import { toImageDoc, toImageRecord } from "./imageMapping";
  * `thumbs/{id}`. Saving never overwrites: every save is a new id created with `create()`, which fails rather than
  * replacing an existing document (PRD §13.2 "prevent duplicate ids").
  *
- * Reads go through a short in-memory cache of all metadata so search and the grid don't spend Firestore's free daily
- * read allowance on every keystroke; this server's own writes update the cache immediately.
+ * Reads go through an in-memory cache of all metadata so search and the grid don't spend Firestore's free daily read
+ * allowance on every keystroke. Every write bumps `meta/library`; a server checks that one document before trusting its
+ * cache, so all of Vercel's servers (and the helper Mac, and `npm run seed`) see new images straight away.
  */
 
 export type NewImage = Omit<ImageRecord, "id" | "blobId" | "width" | "height" | "format" | "mimeType" | "fileSize" | "hasAlpha" | "createdAt" | "updatedAt" | "rootImageId"> & {
@@ -40,19 +41,35 @@ export class ImageNotFoundError extends Error {
   }
 }
 
-const CACHE_MS = 60_000;
+/** Within this window the cache is used without re-checking the version (one burst of thumbnail requests). */
+const TRUST_MS = 2_000;
 
 export class FirestoreImageStore implements ImageStore {
   readonly kind = "firestore" as const;
-  private cache: { at: number; records: Map<string, ImageRecord> } | null = null;
+  private cache: { at: number; version: string | null; records: Map<string, ImageRecord> } | null = null;
 
   constructor(private readonly db: Firestore) {}
 
+  private versionRef() {
+    return this.db.collection(COLLECTIONS.meta).doc("library");
+  }
+
+  private async bumpVersion(): Promise<string> {
+    const version = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await this.versionRef().set({ version, updatedAt: new Date().toISOString() });
+    return version;
+  }
+
   private async all(): Promise<Map<string, ImageRecord>> {
-    if (this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache.records;
+    if (this.cache && Date.now() - this.cache.at < TRUST_MS) return this.cache.records;
+    const version = ((await this.versionRef().get()).get("version") as string | undefined) ?? null;
+    if (this.cache && this.cache.version === version) {
+      this.cache.at = Date.now();
+      return this.cache.records;
+    }
     const snap = await this.db.collection(COLLECTIONS.images).get();
     const records = new Map(snap.docs.map((d) => [d.id, toImageRecord(d.id, d.data())]));
-    this.cache = { at: Date.now(), records };
+    this.cache = { at: Date.now(), version, records };
     return records;
   }
 
@@ -109,7 +126,11 @@ export class FirestoreImageStore implements ImageStore {
       try {
         await this.db.collection(COLLECTIONS.thumbs).doc(id).create({ data: thumb.data, width: thumb.width, height: thumb.height, mimeType: thumb.mimeType });
         await this.db.collection(COLLECTIONS.images).doc(id).create(toImageDoc(record));
-        this.cache?.records.set(id, record);
+        const version = await this.bumpVersion();
+        if (this.cache) {
+          this.cache.records.set(id, record);
+          this.cache.version = version;
+        }
         return record;
       } catch (e) {
         await this.db.collection(COLLECTIONS.thumbs).doc(id).delete().catch(() => {});
@@ -130,7 +151,11 @@ export class FirestoreImageStore implements ImageStore {
       tx.update(ref, { ...patch, updatedAt: next.updatedAt });
       return next;
     });
-    this.cache?.records.set(id, updated);
+    const version = await this.bumpVersion();
+    if (this.cache) {
+      this.cache.records.set(id, updated);
+      this.cache.version = version;
+    }
     return updated;
   }
 }
