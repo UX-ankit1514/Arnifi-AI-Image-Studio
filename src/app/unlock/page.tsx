@@ -1,0 +1,30 @@
+import type { Metadata } from "next";
+import { Container } from "@/components/layout/Container";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Notice } from "@/components/ui/Notice";
+import { TextField } from "@/components/ui/TextField";
+
+export const metadata: Metadata = { title: "Enter Passcode" };
+
+/* Passcode screen, shown only when STUDIO_PASSCODE is set (PRD §21.1 internal access protection). */
+export default async function UnlockPage({ searchParams }: PageProps<"/unlock">) {
+  const params = await searchParams;
+  const next = typeof params.next === "string" ? params.next : "/library";
+  return (
+    <Container className="flex justify-center py-16">
+      <Card className="w-full max-w-md p-8">
+        <h1 className="font-serif text-l4 font-semibold text-heading">Arnifi Image Studio</h1>
+        <p className="mt-2 text-p3 text-muted">This is an internal tool. Enter the studio passcode to continue.</p>
+        <form action="/api/unlock" method="post" className="mt-6 flex flex-col gap-5">
+          {params.wrong && <Notice tone="error">That passcode didn’t match. Try again.</Notice>}
+          <input type="hidden" name="next" value={next} />
+          <TextField label="Passcode" name="passcode" type="password" autoComplete="current-password" required autoFocus />
+          <Button type="submit" fullWidth arrow>
+            Continue
+          </Button>
+        </form>
+      </Card>
+    </Container>
+  );
+}
